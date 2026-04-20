@@ -11,6 +11,11 @@ export async function sendWhatsAppText(toPhoneE164, body) {
   const twToken = process.env.TWILIO_AUTH_TOKEN;
   const twFrom = process.env.TWILIO_WHATSAPP_FROM;
   if (twSid && twToken && twFrom) {
+    logger.info('whatsapp_provider_selected', {
+      provider: 'twilio',
+      to: String(toPhoneE164),
+      from: String(twFrom),
+    });
     const toDigits = String(toPhoneE164).replace(/\D/g, '');
     const to = `whatsapp:+${toDigits}`;
     const from = twFrom.startsWith('whatsapp:') ? twFrom : `whatsapp:${twFrom}`;
@@ -49,6 +54,12 @@ export async function sendWhatsAppText(toPhoneE164, body) {
     logger.info('whatsapp_mock_send', { to: toPhoneE164, body: body.slice(0, 200) });
     return { ok: true, mock: true };
   }
+
+  logger.info('whatsapp_provider_selected', {
+    provider: 'meta_cloud',
+    to: String(toPhoneE164),
+    phoneId: String(phoneId),
+  });
 
   const normalized = toPhoneE164.replace(/\D/g, '');
   const payload = {

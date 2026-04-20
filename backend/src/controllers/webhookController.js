@@ -28,17 +28,42 @@ function parseMetaBody(body) {
 
 export async function postWebhookWhatsapp(req, res, next) {
   try {
+    logger.info('webhook_whatsapp_received', {
+      hasBody: !!req.body,
+      topKeys: Object.keys(req.body || {}).slice(0, 10),
+    });
     const parsed = parseMetaBody(req.body);
+    // Meta/WhatsApp exige ACK rápido no webhook; processamos em background
+    // para não estourar timeout e não bloquear em chamadas externas (ex.: envio WhatsApp).
+    res.status(200).send('OK');
+
     if (parsed?.from && parsed.text !== undefined) {
-      await flow.handleIncoming(parsed.from, parsed.text);
+      logger.info('webhook_whatsapp_parsed', {
+        from: parsed.from,
+        textPreview: String(parsed.text || '').slice(0, 120),
+      });
+      flow.handleIncoming(parsed.from, parsed.text).catch((e) => {
+        logger.error('webhook_whatsapp_handle_failed', {
+          err: e?.message || String(e),
+          from: parsed.from,
+        });
+      });
     } else if (req.body?.from && req.body?.message !== undefined) {
-      await flow.handleIncoming(req.body.from, req.body.message);
+      logger.info('webhook_whatsapp_custom_shape', {
+        from: req.body?.from,
+        textPreview: String(req.body?.message || '').slice(0, 120),
+      });
+      flow.handleIncoming(req.body.from, req.body.message).catch((e) => {
+        logger.error('webhook_whatsapp_handle_failed', {
+          err: e?.message || String(e),
+          from: req.body?.from,
+        });
+      });
     } else {
       logger.warn('webhook_whatsapp_unknown_shape', {
         keys: Object.keys(req.body || {}),
       });
     }
-    res.status(200).send('OK');
   } catch (e) {
     next(e);
   }
@@ -55,25 +80,12 @@ export async function postWebhookTwilio(req, res, next) {
     const fromRaw = req.body?.From || req.body?.from || '';
     const bodyRaw = String(req.body?.Body || req.body?.message || '').trim();
     const from = String(fromRaw).replace(/^whatsapp:/i, '');
-    let resposta = 'Olá! Sou o assistente da clínica 👋';
-
-    if (!from || !bodyRaw) {
-      resposta =
-        'Não consegui identificar sua mensagem. Responda: 1 para agendar ou 2 para falar com atendente.';
-    } else {
-      const result = await flow.handleIncoming(from, bodyRaw, {
-        transport: 'twiml',
-      });
-      if (result?.reply) resposta = result.reply;
-    }
-
-    // Escapa caracteres para XML válido.
-    const safe = resposta
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    const twiml = `<Response><Message>${safe}</Message></Response>`;
+    // Twilio pode “engasgar” se o webhook demorar (ex.: Firestore + regras de agenda).
+    // Para máxima confiabilidade, respondemos IMEDIATAMENTE com TwiML vazio (200)
+    // e enviamos a mensagem real via API do Twilio em background.
+    //
+    // Observação: o envio real usa sendWhatsAppText → Twilio REST quando TWILIO_* está setado.
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`;
 
     if (!fromRaw) {
       logger.warn('webhook_twilio_unknown_shape', {
@@ -83,6 +95,25 @@ export async function postWebhookTwilio(req, res, next) {
 
     res.set('Content-Type', 'text/xml');
     res.status(200).send(twiml);
+
+    if (!from || !bodyRaw) {
+      flow
+        .handleIncoming(from || 'unknown', bodyRaw || '', { transport: 'provider' })
+        .catch((e) =>
+          logger.error('webhook_twilio_handle_failed', {
+            err: e?.message || String(e),
+            from,
+          })
+        );
+      return;
+    }
+
+    flow.handleIncoming(from, bodyRaw, { transport: 'provider' }).catch((e) => {
+      logger.error('webhook_twilio_handle_failed', {
+        err: e?.message || String(e),
+        from,
+      });
+    });
   } catch (e) {
     next(e);
   }

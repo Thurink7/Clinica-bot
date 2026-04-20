@@ -35,7 +35,15 @@ export class WhatsappFlowService {
     const respond = async (message) => {
       reply = message;
       if (transport === 'provider') {
-        await sendWhatsAppText(telefone, message);
+        try {
+          await sendWhatsAppText(telefone, message);
+        } catch (e) {
+          // Não quebra o fluxo/ACK do webhook se o provider falhar; apenas loga.
+          logger.error('whatsapp_send_error', {
+            err: e?.message || String(e),
+            to: telefone,
+          });
+        }
       }
       return message;
     };
