@@ -138,7 +138,7 @@ export class WhatsappFlowService {
     }
 
     if (text === '2' || text.includes('ATENDENTE')) {
-      await this.sessions.clear(telefone);
+      await this.sessions.set(telefone, { step: 'menu' });
 
       await respond(
         'Encaminhamos para um atendente humano. Para voltar ao menu, envie qualquer mensagem.'
