@@ -6,7 +6,29 @@ import { logger } from './utils/logger.js';
 
 export function createApp() {
   const app = express();
-  app.use(cors({ origin: true }));
+  // MVP: permite origens do painel (Vercel, localhost). Evita bloqueio CORS em navegador.
+  const extra = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  app.use(
+    cors({
+      origin: (origin, cb) => {
+        if (!origin) return cb(null, true);
+        if (extra.length && extra.includes(origin)) return cb(null, true);
+        try {
+          const hostname = new URL(origin).hostname;
+          if (hostname === 'localhost' || hostname === '127.0.0.1') return cb(null, true);
+          if (hostname.endsWith('.vercel.app')) return cb(null, true);
+        } catch {
+          /* ignore */
+        }
+        return cb(null, true);
+      },
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    })
+  );
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
 
