@@ -1,0 +1,91 @@
+import { getFirestore } from '../config/firebase.js';
+
+export class ConsultaRepository {
+  constructor(db = getFirestore()) {
+    this.db = db;
+    this.col = this.db.collection('consultas');
+  }
+
+  async create(data) {
+    const ref = await this.col.add({
+      ...data,
+      createdAt: new Date().toISOString(),
+    });
+    return { id: ref.id, ...data };
+  }
+
+  async getById(id) {
+    const snap = await this.col.doc(id).get();
+    if (!snap.exists) return null;
+    return { id: snap.id, ...snap.data() };
+  }
+
+  async update(id, partial) {
+    await this.col.doc(id).set(partial, { merge: true });
+    return this.getById(id);
+  }
+
+  async delete(id) {
+    await this.col.doc(id).delete();
+    return { id, deleted: true };
+  }
+
+  /** Consultas em uma data (YYYY-MM-DD) */
+  async listByDate(dateStr) {
+    const snap = await this.col.where('data', '==', dateStr).get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+
+  async listByDateRange(startDateStr, endDateStr) {
+    const snap = await this.col
+      .where('data', '>=', startDateStr)
+      .where('data', '<=', endDateStr)
+      .get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+
+  /** Verifica conflito: mesmo dia/hora e status ativo */
+  async hasConflict(dateStr, hora, excludeId = null) {
+    const snap = await this.col.where('data', '==', dateStr).where('hora', '==', hora).get();
+    for (const doc of snap.docs) {
+      if (excludeId && doc.id === excludeId) continue;
+      const s = doc.data().status;
+      if (s !== 'cancelado') return true;
+    }
+    return false;
+  }
+
+  async listAllForReminders() {
+    const statuses = ['agendado', 'confirmado'];
+    const out = [];
+    for (const st of statuses) {
+      const snap = await this.col.where('status', '==', st).get();
+      snap.docs.forEach((d) => out.push({ id: d.id, ...d.data() }));
+    }
+    return out;
+  }
+
+  async listPacientesAggregated() {
+    const snap = await this.col.get();
+    const byPhone = new Map();
+    snap.docs.forEach((doc) => {
+      const row = doc.data();
+      const phone = row.telefone;
+      if (!phone) return;
+      if (!byPhone.has(phone)) {
+        byPhone.set(phone, {
+          telefone: phone,
+          nome: row.nomePaciente,
+          consultas: [],
+        });
+      }
+      byPhone.get(phone).consultas.push({
+        id: doc.id,
+        data: row.data,
+        hora: row.hora,
+        status: row.status,
+      });
+    });
+    return [...byPhone.values()].sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+}
