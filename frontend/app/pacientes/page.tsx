@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { PacienteRow } from '@/lib/api';
+import type { PacienteRow, Profissional } from '@/lib/api';
 import { fetchJson } from '@/lib/api';
 import { StatusBadge } from '@/components/StatusBadge';
 
@@ -9,6 +9,8 @@ export default function PacientesPage() {
   const [list, setList] = useState<PacienteRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [profissionalId, setProfissionalId] = useState<string>(''); // '' = todos
 
   const filtered = list.filter((p) => {
     const q = search.trim().toLowerCase();
@@ -20,8 +22,18 @@ export default function PacientesPage() {
     let cancelled = false;
     (async () => {
       try {
-        const data = await fetchJson<PacienteRow[]>('/pacientes');
-        if (!cancelled) setList(data);
+        const [pros, pacientes] = await Promise.all([
+          fetchJson<Profissional[]>('/profissionais'),
+          fetchJson<PacienteRow[]>(
+            profissionalId
+              ? `/pacientes?profissionalId=${encodeURIComponent(profissionalId)}`
+              : '/pacientes'
+          ),
+        ]);
+        if (!cancelled) {
+          setProfissionais(pros);
+          setList(pacientes);
+        }
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
       }
@@ -29,22 +41,42 @@ export default function PacientesPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [profissionalId]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-clinic-800">Pacientes</h1>
-          <p className="text-sm text-slate-600">Histórico básico e contatos.</p>
+          <p className="text-sm text-slate-600">Histórico básico e contatos (filtrável por médico).</p>
         </div>
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nome ou telefone"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm sm:w-72"
-        />
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 sm:w-72">
+            <label className="mr-2 text-sm text-slate-600">Médico</label>
+            <select
+              value={profissionalId}
+              onChange={(e) => {
+                setError(null);
+                setProfissionalId(e.target.value);
+              }}
+              className="text-sm"
+            >
+              <option value="">Todos</option>
+              {profissionais.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome ou telefone"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm sm:w-72"
+          />
+        </div>
       </div>
       {error && <p className="mb-4 text-sm text-rose-600">{error}</p>}
       <div className="space-y-4">

@@ -81,8 +81,17 @@ export class ConsultaRepository {
 
   async listPacientesAggregated() {
     const snap = await this.col.get();
+    return this._aggregatePacientesFromDocs(snap.docs);
+  }
+
+  async listPacientesAggregatedByProfessional(profissionalId) {
+    const snap = await this.col.where('profissionalId', '==', profissionalId).get();
+    return this._aggregatePacientesFromDocs(snap.docs);
+  }
+
+  _aggregatePacientesFromDocs(docs) {
     const byPhone = new Map();
-    snap.docs.forEach((doc) => {
+    docs.forEach((doc) => {
       const row = doc.data();
       const phone = row.telefone;
       if (!phone) return;

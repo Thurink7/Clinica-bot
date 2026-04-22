@@ -91,7 +91,12 @@ export async function putConfig(req, res, next) {
 
 export async function getPacientes(req, res, next) {
   try {
-    const list = await consultaRepo.listPacientesAggregated();
+    const profissionalId = req.query?.profissionalId
+      ? String(req.query.profissionalId)
+      : null;
+    const list = profissionalId
+      ? await consultaRepo.listPacientesAggregatedByProfessional(profissionalId)
+      : await consultaRepo.listPacientesAggregated();
     res.json(list);
   } catch (e) {
     next(e);
