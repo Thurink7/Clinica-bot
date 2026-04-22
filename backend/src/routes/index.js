@@ -11,6 +11,11 @@ import {
   getPacientes,
 } from '../controllers/consultaController.js';
 import {
+  postProfissional,
+  getProfissionais,
+  getServicos,
+} from '../controllers/professionalController.js';
+import {
   postWebhookWhatsapp,
   postWebhookTwilio,
   getWebhookVerify,
@@ -27,6 +32,10 @@ router.get('/slots', getSlots);
 router.get('/config', getConfig);
 router.put('/config', putConfig);
 router.get('/pacientes', getPacientes);
+
+router.post('/profissionais', postProfissional);
+router.get('/profissionais', getProfissionais);
+router.get('/servicos', getServicos);
 
 router.post('/webhook-whatsapp', postWebhookWhatsapp);
 router.post('/webhook', postWebhookTwilio);

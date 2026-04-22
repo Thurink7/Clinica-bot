@@ -16,7 +16,10 @@ export class ConsultaService {
     this.config = config;
   }
 
-  async agendar({ nomePaciente, telefone, data, hora }, opts = {}) {
+  async agendar(
+    { nomePaciente, telefone, data, hora, profissionalId = null, servico = null },
+    opts = {}
+  ) {
     if (!nomePaciente || !telefone || !data || !hora) {
       const err = new Error('Campos obrigatórios: nomePaciente, telefone, data, hora');
       err.status = 400;
@@ -31,7 +34,7 @@ export class ConsultaService {
       throw err;
     }
 
-    const conflict = await this.consultas.hasConflict(data, hora);
+    const conflict = await this.consultas.hasConflict(data, hora, null, profissionalId);
     if (conflict) {
       const err = new Error('Horário já ocupado');
       err.status = 409;
@@ -43,6 +46,8 @@ export class ConsultaService {
       telefone: String(telefone).replace(/\D/g, ''),
       data,
       hora,
+      profissionalId: profissionalId || null,
+      servico: servico ? String(servico).trim().toUpperCase() : null,
       status: 'agendado',
       reminder24hSent: false,
       reminder3hSent: false,
@@ -125,10 +130,12 @@ export class ConsultaService {
     return this.consultas.delete(id);
   }
 
-  async horariosDisponiveis(dataStr) {
+  async horariosDisponiveis(dataStr, profissionalId = null) {
     const cfg = await this.config.get();
     const slots = generateSlotsForDay(dataStr, cfg);
-    const ocupadas = await this.consultas.listByDate(dataStr);
+    const ocupadas = profissionalId
+      ? await this.consultas.listByDateAndProfessional(dataStr, profissionalId)
+      : await this.consultas.listByDate(dataStr);
     const taken = new Set(
       ocupadas.filter((c) => c.status !== 'cancelado').map((c) => c.hora)
     );

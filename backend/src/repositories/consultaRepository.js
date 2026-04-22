@@ -36,6 +36,15 @@ export class ConsultaRepository {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   }
 
+  /** Consultas em uma data por profissional */
+  async listByDateAndProfessional(dateStr, profissionalId) {
+    const snap = await this.col
+      .where('data', '==', dateStr)
+      .where('profissionalId', '==', profissionalId)
+      .get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+
   async listByDateRange(startDateStr, endDateStr) {
     const snap = await this.col
       .where('data', '>=', startDateStr)
@@ -44,9 +53,14 @@ export class ConsultaRepository {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   }
 
-  /** Verifica conflito: mesmo dia/hora e status ativo */
-  async hasConflict(dateStr, hora, excludeId = null) {
-    const snap = await this.col.where('data', '==', dateStr).where('hora', '==', hora).get();
+  /**
+   * Verifica conflito: mesmo dia/hora e status ativo.
+   * Se profissionalId for informado, o conflito é somente dentro do profissional.
+   */
+  async hasConflict(dateStr, hora, excludeId = null, profissionalId = null) {
+    let q = this.col.where('data', '==', dateStr).where('hora', '==', hora);
+    if (profissionalId) q = q.where('profissionalId', '==', profissionalId);
+    const snap = await q.get();
     for (const doc of snap.docs) {
       if (excludeId && doc.id === excludeId) continue;
       const s = doc.data().status;

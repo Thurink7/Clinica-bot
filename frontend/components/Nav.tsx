@@ -6,6 +6,7 @@ const links = [
   { href: '/', label: 'Dashboard' },
   { href: '/agenda', label: 'Agenda' },
   { href: '/pacientes', label: 'Pacientes' },
+  { href: '/profissionais', label: 'Profissionais' },
   { href: '/configuracoes', label: 'Configurações' },
 ];
 

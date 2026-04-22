@@ -46,6 +46,13 @@ export type Consulta = {
   status: 'agendado' | 'confirmado' | 'cancelado';
 };
 
+export type Profissional = {
+  id: string;
+  nome: string;
+  servicos: string[];
+  ativo: boolean;
+};
+
 export type ClinicConfig = {
   open: string;
   close: string;
