@@ -18,6 +18,8 @@ export default function PacientesPage() {
     return p.nome.toLowerCase().includes(q) || p.telefone.includes(q);
   });
 
+  const proById = new Map(profissionais.map((p) => [p.id, p]));
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -100,6 +102,12 @@ export default function PacientesPage() {
                   <span>
                     {c.data} {c.hora}
                   </span>
+                  {(c.profissionalId || c.servico) && (
+                    <span className="text-slate-500">
+                      — {c.profissionalId ? `Dr(a). ${proById.get(c.profissionalId)?.nome || '—'}` : 'Dr(a). —'}
+                      {c.servico ? ` · ${String(c.servico).toUpperCase()}` : ''}
+                    </span>
+                  )}
                   <StatusBadge status={c.status} />
                 </li>
               ))}

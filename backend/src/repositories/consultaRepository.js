@@ -107,6 +107,8 @@ export class ConsultaRepository {
         data: row.data,
         hora: row.hora,
         status: row.status,
+        profissionalId: row.profissionalId || null,
+        servico: row.servico || null,
       });
     });
     return [...byPhone.values()].sort((a, b) => a.nome.localeCompare(b.nome));
