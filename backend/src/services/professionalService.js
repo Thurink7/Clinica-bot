@@ -5,29 +5,51 @@ export class ProfessionalService {
     this.repo = repo;
   }
 
-  async cadastrar({ nome, servicos, ativo } = {}) {
+  async cadastrar({ nome, especialidade, telefone, email, servicos, ativo } = {}) {
     const n = String(nome || '').trim();
+    const esp = String(especialidade || '').trim();
+    const tel = String(telefone || '').replace(/\D/g, '');
+    const em = String(email || '').trim().toLowerCase();
+
     if (!n) {
       const err = new Error('nome obrigatório');
       err.status = 400;
       throw err;
     }
+    if (!esp) {
+      const err = new Error('especialidade obrigatória');
+      err.status = 400;
+      throw err;
+    }
+    if (!tel || tel.length < 10) {
+      const err = new Error('telefone obrigatório (mín. 10 dígitos)');
+      err.status = 400;
+      throw err;
+    }
+    if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+      const err = new Error('email obrigatório inválido');
+      err.status = 400;
+      throw err;
+    }
 
-    const list = Array.isArray(servicos)
+    let list = Array.isArray(servicos)
       ? servicos
       : String(servicos || '')
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean);
 
-    if (!list.length) {
-      const err = new Error('servicos obrigatório (array ou string separada por vírgula)');
-      err.status = 400;
-      throw err;
-    }
+    if (!list.length) list = [esp];
 
-    const norm = [...new Set(list.map((s) => s.toUpperCase()))];
-    return this.repo.create({ nome: n, servicos: norm, ativo: ativo !== false });
+    const norm = [...new Set(list.map((s) => String(s).toUpperCase()))];
+    return this.repo.create({
+      nome: n,
+      especialidade: esp,
+      telefone: tel,
+      email: em,
+      servicos: norm,
+      ativo: ativo !== false,
+    });
   }
 
   async listarAtivos() {

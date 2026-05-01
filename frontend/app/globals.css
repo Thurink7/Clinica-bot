@@ -3,13 +3,13 @@
 @tailwind utilities;
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
-  background-image: radial-gradient(circle at top, #dbeafe 0%, #f8fafc 35%, #f8fafc 100%);
+  @apply bg-brand-muted text-slate-900 antialiased;
+  background-image: radial-gradient(ellipse 120% 80% at 50% -20%, #dbeafe 0%, #f3f4f6 45%, #f3f4f6 100%);
   min-height: 100vh;
 }
 
 input,
 button,
 select {
-  @apply outline-none;
+  @apply outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:ring-offset-2;
 }

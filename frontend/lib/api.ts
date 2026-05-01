@@ -51,6 +51,9 @@ export type Profissional = {
   nome: string;
   servicos: string[];
   ativo: boolean;
+  especialidade?: string;
+  telefone?: string;
+  email?: string;
 };
 
 export type ClinicConfig = {

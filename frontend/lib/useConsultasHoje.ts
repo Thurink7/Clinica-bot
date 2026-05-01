@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { getFirebaseDb } from './firebaseClient';
+import { getFirebaseDb } from './firebaseAuth';
 import type { Consulta } from './api';
 import { fetchJson } from './api';
 
