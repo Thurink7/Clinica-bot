@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { postLogin, getMe } from '../controllers/authController.js';
 import {
   postAgendar,
   getConsultas,
@@ -22,6 +23,9 @@ import {
 } from '../controllers/webhookController.js';
 
 const router = Router();
+
+router.post('/auth/login', postLogin);
+router.get('/auth/me', getMe);
 
 router.post('/agendar', postAgendar);
 router.get('/consultas', getConsultas);

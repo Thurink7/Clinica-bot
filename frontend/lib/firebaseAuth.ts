@@ -1,11 +1,3 @@
-import {
-  getAuth,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  signOut,
-  type User,
-} from 'firebase/auth';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { isFirebaseConfigured } from '@/lib/isFirebaseConfigured';
@@ -27,42 +19,9 @@ function getOrCreateApp(): FirebaseApp | null {
   return app;
 }
 
+/** Firestore no browser para escuta em tempo real (agenda), quando o env do Firebase estiver configurado. */
 export function getFirebaseDb(): Firestore | null {
   const a = getOrCreateApp();
   if (!a) return null;
   return getFirestore(a);
-}
-
-export function getFirebaseAuth() {
-  const a = getOrCreateApp();
-  if (!a) return null;
-  return getAuth(a);
-}
-
-export async function authSignIn(email: string, password: string): Promise<User> {
-  const auth = getFirebaseAuth();
-  if (!auth) throw new Error('Firebase não configurado.');
-  const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-  return cred.user;
-}
-
-export async function authSignOut(): Promise<void> {
-  const auth = getFirebaseAuth();
-  if (!auth) return;
-  await signOut(auth);
-}
-
-export async function authSendReset(email: string): Promise<void> {
-  const auth = getFirebaseAuth();
-  if (!auth) throw new Error('Firebase não configurado.');
-  await sendPasswordResetEmail(auth, email.trim());
-}
-
-export function subscribeAuth(cb: (user: User | null) => void): () => void {
-  const auth = getFirebaseAuth();
-  if (!auth) {
-    cb(null);
-    return () => {};
-  }
-  return onAuthStateChanged(auth, cb);
 }

@@ -1,10 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { authSignOut } from '@/lib/firebaseAuth';
-import { isFirebaseConfigured } from '@/lib/isFirebaseConfigured';
 
 const links = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -16,12 +15,12 @@ const links = [
 
 export function Nav() {
   const pathname = usePathname();
-  const { user } = useAuth();
-  const showAuth = isFirebaseConfigured();
+  const router = useRouter();
+  const { user, logout } = useAuth();
 
-  async function signOut() {
-    await authSignOut();
-    window.location.href = '/login';
+  function signOut() {
+    logout();
+    router.replace('/login');
   }
 
   return (
@@ -54,7 +53,7 @@ export function Nav() {
               {l.label}
             </Link>
           ))}
-          {showAuth && user && (
+          {user && (
             <button
               type="button"
               onClick={signOut}

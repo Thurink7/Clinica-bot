@@ -1,7 +1,15 @@
+'use client';
+
+import { useEffect } from 'react';
 import { Nav } from '@/components/Nav';
 import { RequireAuth } from '@/components/RequireAuth';
 
 export default function PainelLayout({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    document.body.setAttribute('data-app-shell', 'true');
+    return () => document.body.removeAttribute('data-app-shell');
+  }, []);
+
   return (
     <RequireAuth>
       <Nav />

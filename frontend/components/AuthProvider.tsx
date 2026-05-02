@@ -1,37 +1,89 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { User } from 'firebase/auth';
-import { isFirebaseConfigured } from '@/lib/isFirebaseConfigured';
-import { subscribeAuth } from '@/lib/firebaseAuth';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { fetchJson, type FetchJsonOptions } from '@/lib/api';
+import { getStoredToken, setStoredToken } from '@/lib/session';
+
+export type SessionUser = {
+  id: string;
+  email: string;
+  nome: string | null;
+};
 
 type AuthState = {
-  user: User | null;
+  user: SessionUser | null;
   loading: boolean;
-  /** false quando não há projeto Firebase no env — painel fica aberto (desenvolvimento). */
+  /** Sempre true: o painel exige login via API (usuários em Firestore / admin_users). */
   authRequired: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  /** fetch autenticado; use skipAuth no login. */
+  fetchWithAuth: <T>(path: string, init?: FetchJsonOptions) => Promise<T>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const authRequired = isFirebaseConfigured();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(authRequired);
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!authRequired) {
-      setLoading(false);
+  const refreshSession = useCallback(async () => {
+    const t = getStoredToken();
+    if (!t) {
+      setUser(null);
       return;
     }
-    const unsub = subscribeAuth((u) => {
-      setUser(u);
-      setLoading(false);
-    });
-    return unsub;
-  }, [authRequired]);
+    try {
+      const r = await fetchJson<{ user: SessionUser }>('/auth/me');
+      setUser(r.user);
+    } catch {
+      setStoredToken(null);
+      setUser(null);
+    }
+  }, []);
 
-  const value = useMemo(() => ({ user, loading, authRequired }), [user, loading, authRequired]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await refreshSession();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshSession]);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const r = await fetchJson<{ token: string; user: SessionUser }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+      skipAuth: true,
+    });
+    setStoredToken(r.token);
+    setUser(r.user);
+  }, []);
+
+  const logout = useCallback(() => {
+    setStoredToken(null);
+    setUser(null);
+  }, []);
+
+  const fetchWithAuth = useCallback(
+    <T,>(path: string, init?: FetchJsonOptions) => fetchJson<T>(path, init),
+    []
+  );
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      authRequired: true,
+      login,
+      logout,
+      fetchWithAuth,
+    }),
+    [user, loading, login, logout, fetchWithAuth]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

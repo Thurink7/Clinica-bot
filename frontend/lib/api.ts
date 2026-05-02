@@ -1,19 +1,28 @@
+import { getStoredToken } from '@/lib/session';
+
 const base = () =>
   (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
 
-export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+export type FetchJsonOptions = RequestInit & { skipAuth?: boolean };
+
+export async function fetchJson<T>(path: string, init?: FetchJsonOptions): Promise<T> {
   const method = (init?.method || 'GET').toUpperCase();
-  const headers = new Headers(init?.headers as HeadersInit);
-  // GET/HEAD com Content-Type JSON dispara preflight CORS desnecessário; não envia em GET.
+  const { skipAuth, ...rest } = init || {};
+  const headers = new Headers(rest?.headers as HeadersInit);
   if (method !== 'GET' && method !== 'HEAD' && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
+  }
+
+  if (!skipAuth && typeof window !== 'undefined') {
+    const t = getStoredToken();
+    if (t) headers.set('Authorization', `Bearer ${t}`);
   }
 
   const url = `${base()}${path}`;
 
   let res: Response;
   try {
-    res = await fetch(url, { ...init, headers });
+    res = await fetch(url, { ...rest, headers });
   } catch (e) {
     const hint =
       typeof window !== 'undefined' &&
@@ -31,9 +40,18 @@ export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T>
   }
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || res.statusText);
+    const text = await res.text();
+    let message = text || res.statusText;
+    try {
+      const j = JSON.parse(text) as { error?: string };
+      if (j?.error) message = j.error;
+    } catch {
+      /* texto plano */
+    }
+    throw new Error(message);
   }
+
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 

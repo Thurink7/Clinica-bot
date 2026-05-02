@@ -4,33 +4,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { authSendReset, authSignIn, getFirebaseAuth } from '@/lib/firebaseAuth';
-import { isFirebaseConfigured } from '@/lib/isFirebaseConfigured';
-
-function parseFirebaseError(code: string): string {
-  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
-    return 'E-mail ou senha incorretos.';
-  }
-  if (code === 'auth/user-not-found') return 'Usuário não encontrado.';
-  if (code === 'auth/invalid-email') return 'E-mail inválido.';
-  if (code === 'auth/too-many-requests') return 'Muitas tentativas. Tente novamente em instantes.';
-  return 'Não foi possível entrar. Tente novamente.';
-}
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, loading, authRequired } = useAuth();
+  const { user, loading, login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
 
   useEffect(() => {
-    if (!loading && user && authRequired) router.replace('/dashboard');
-  }, [loading, user, authRequired, router]);
+    if (!loading && user) router.replace('/dashboard');
+  }, [loading, user, router]);
 
   function validate(): boolean {
     const next: { email?: string; password?: string } = {};
@@ -45,66 +31,40 @@ export default function LoginPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setResetMsg(null);
     if (!validate()) return;
-
-    if (!isFirebaseConfigured()) {
-      router.replace('/dashboard');
-      return;
-    }
 
     setSubmitting(true);
     try {
-      await authSignIn(email, password);
+      await login(email, password);
       router.replace('/dashboard');
-    } catch (err: unknown) {
-      const code = typeof err === 'object' && err && 'code' in err ? String((err as { code?: string }).code) : '';
-      setError(parseFirebaseError(code));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível entrar.');
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function onForgot() {
-    setError(null);
-    setResetMsg(null);
-    const em = email.trim();
-    if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
-      setFieldErrors({ email: 'Informe um e-mail válido para recuperação.' });
-      return;
-    }
-    if (!getFirebaseAuth()) {
-      setError('Firebase não configurado.');
-      return;
-    }
-    setResetting(true);
-    try {
-      await authSendReset(em);
-      setResetMsg('Se existir uma conta, enviamos um e-mail com o link para redefinir a senha.');
-    } catch {
-      setError('Não foi possível enviar o e-mail de recuperação.');
-    } finally {
-      setResetting(false);
-    }
+  if (!loading && user) {
+    return null;
   }
 
-  if (authRequired && loading) {
+  if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-light via-white to-brand-muted">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[hsl(214,100%,97%)] via-white to-[hsl(214,32%,95%)]">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-brand-primary border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-brand-light via-white to-brand-muted px-4 py-10">
-      <div className="mx-auto mb-8 flex items-center gap-2 text-lg font-semibold text-brand-secondary">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-brand-light">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-[hsl(214,100%,97%)] via-white to-[hsl(214,32%,95%)] px-4 py-10">
+      <div className="mx-auto mb-8 flex items-center gap-2 text-lg font-semibold text-[hsl(224,76%,22%)]">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-[hsl(214,32%,91%)]">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M12 3v4M12 17v4M3 12h4M17 12h4"
               stroke="currentColor"
-              className="text-brand-primary"
+              className="text-[hsl(217,91%,60%)]"
               strokeWidth="1.8"
               strokeLinecap="round"
             />
@@ -115,14 +75,10 @@ export default function LoginPage() {
 
       <div className="mx-auto w-full max-w-[420px]">
         <div className="rounded-2xl border border-white/80 bg-white p-8 shadow-lg shadow-brand-primary/10">
-          <h1 className="text-center text-xl font-bold text-brand-secondary">Acesso ao painel</h1>
-          <p className="mt-1 text-center text-sm text-slate-600">Entre com a conta da clínica</p>
-
-          {!isFirebaseConfigured() && (
-            <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-center text-xs text-amber-900 ring-1 ring-amber-200">
-              Firebase não configurado no ambiente — você será redirecionado ao painel sem login (uso interno).
-            </p>
-          )}
+          <h1 className="text-center text-xl font-bold text-[hsl(224,76%,22%)]">Acesso ao painel</h1>
+          <p className="mt-1 text-center text-sm text-[hsl(215,20%,45%)]">
+            Use o e-mail e a senha cadastrados no sistema (banco de dados).
+          </p>
 
           <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
             <div>
@@ -162,11 +118,6 @@ export default function LoginPage() {
             {error && (
               <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div>
             )}
-            {resetMsg && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-                {resetMsg}
-              </div>
-            )}
 
             <button
               type="submit"
@@ -183,16 +134,10 @@ export default function LoginPage() {
               )}
             </button>
 
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={onForgot}
-                disabled={resetting}
-                className="text-sm font-medium text-brand-primary hover:underline disabled:opacity-50"
-              >
-                {resetting ? 'Enviando…' : 'Esqueci minha senha'}
-              </button>
-            </div>
+            <p className="text-center text-xs text-[hsl(215,20%,45%)]">
+              Esqueceu a senha? O administrador pode definir uma nova credencial no Firestore ou via variáveis de ambiente
+              de bootstrap (consulte a documentação da API).
+            </p>
           </form>
         </div>
 
