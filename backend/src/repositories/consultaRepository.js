@@ -53,6 +53,17 @@ export class ConsultaRepository {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   }
 
+  /** Consultas ativas (não canceladas) de um telefone, a partir de uma data YYYY-MM-DD (filtro em memória). */
+  async listFromDateByTelefone(dateMinStr, telefoneNorm) {
+    const tel = String(telefoneNorm || '').replace(/\D/g, '');
+    if (!tel) return [];
+    const snap = await this.col.where('telefone', '==', tel).get();
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((r) => r.status !== 'cancelado' && String(r.data) >= dateMinStr)
+      .sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora));
+  }
+
   /**
    * Verifica conflito: mesmo dia/hora e status ativo.
    * Se profissionalId for informado, o conflito é somente dentro do profissional.

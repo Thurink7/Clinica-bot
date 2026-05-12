@@ -21,6 +21,7 @@ import {
   postWebhookTwilio,
   getWebhookVerify,
 } from '../controllers/webhookController.js';
+import { postCadastroPaciente, patchPacienteObservacoes } from '../controllers/pacienteController.js';
 
 const router = Router();
 
@@ -36,6 +37,8 @@ router.get('/slots', getSlots);
 router.get('/config', getConfig);
 router.put('/config', putConfig);
 router.get('/pacientes', getPacientes);
+router.post('/pacientes/cadastro', postCadastroPaciente);
+router.patch('/pacientes/observacoes', patchPacienteObservacoes);
 
 router.post('/profissionais', postProfissional);
 router.get('/profissionais', getProfissionais);

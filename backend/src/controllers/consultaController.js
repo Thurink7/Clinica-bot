@@ -1,9 +1,49 @@
 import { ConsultaService } from '../services/consultaService.js';
 import { ConfigRepository } from '../repositories/configRepository.js';
 import { ConsultaRepository } from '../repositories/consultaRepository.js';
+import { PacienteRepository } from '../repositories/pacienteRepository.js';
 
 const service = new ConsultaService();
 const consultaRepo = new ConsultaRepository();
+const pacienteRepo = new PacienteRepository();
+
+async function buildPacientesMerged(profissionalId) {
+  const agregados = profissionalId
+    ? await consultaRepo.listPacientesAggregatedByProfessional(profissionalId)
+    : await consultaRepo.listPacientesAggregated();
+  const cadastros = await pacienteRepo.listAll();
+  const cadByTel = new Map(cadastros.map((c) => [String(c.telefone).replace(/\D/g, ''), c]));
+
+  const map = new Map();
+  for (const a of agregados) {
+    const tel = String(a.telefone).replace(/\D/g, '');
+    const cad = cadByTel.get(tel) || {};
+    map.set(tel, {
+      telefone: tel,
+      nome: (cad.nome && String(cad.nome).trim()) || a.nome,
+      cpf: cad.cpf ?? null,
+      dataNascimento: cad.dataNascimento ?? null,
+      observacoes: cad.observacoes ?? null,
+      consultas: a.consultas,
+    });
+  }
+  if (!profissionalId) {
+    for (const c of cadastros) {
+      const tel = String(c.telefone).replace(/\D/g, '');
+      if (!map.has(tel)) {
+        map.set(tel, {
+          telefone: tel,
+          nome: c.nome,
+          cpf: c.cpf ?? null,
+          dataNascimento: c.dataNascimento ?? null,
+          observacoes: c.observacoes ?? null,
+          consultas: [],
+        });
+      }
+    }
+  }
+  return [...map.values()].sort((x, y) => String(x.nome).localeCompare(String(y.nome), 'pt-BR'));
+}
 
 export async function postAgendar(req, res, next) {
   try {
@@ -94,9 +134,7 @@ export async function getPacientes(req, res, next) {
     const profissionalId = req.query?.profissionalId
       ? String(req.query.profissionalId)
       : null;
-    const list = profissionalId
-      ? await consultaRepo.listPacientesAggregatedByProfessional(profissionalId)
-      : await consultaRepo.listPacientesAggregated();
+    const list = await buildPacientesMerged(profissionalId);
     res.json(list);
   } catch (e) {
     next(e);
